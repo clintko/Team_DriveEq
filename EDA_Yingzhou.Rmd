@@ -1,0 +1,62 @@
+---
+title: "R Notebook"
+output: html_notebook
+---
+
+```{r}
+df <- read.csv('/data/DataFest2018/subset1.csv')
+df <- df[,2:ncol(df)]
+```
+```{r}
+df
+```
+```{r}
+length(unique(df$companyId))
+```
+```{r}
+table(df$companyId)
+```
+```{r}
+summary(df$clicks)
+```
+```{r}
+ggplot(mapping=aes(x = clicks, fill = jobLanguage),data = df) + geom_histogram(binwidth = 1)
+```
+```{r}
+ggplot(mapping=aes(x = clicks, fill = jobLanguage),data = df) + geom_histogram(binwidth = 1) + scale_x_continuous(breaks = seq(0, 100, 10), limits = c(0, 100)) 
+```
+```{r}
+ggplot(mapping=aes(x = clicks, fill = jobLanguage),data = df) + geom_histogram(binwidth = 1) + scale_x_continuous(breaks = seq(100, 1000, 50), limits = c(100, 1000))
+```
+```{r}
+ggplot(mapping=aes(x = clicks, fill = jobLanguage),data = df) + geom_histogram(binwidth = 100) + scale_x_continuous(breaks = seq(1000, 10000, 500), limits = c(1000, 10000))
+```
+```{r}
+summary(df$clicks)
+```
+```{r}
+df[which(df$clicks == max(df$clicks)),]
+```
+```{r}
+summary(df)
+```
+```{r}
+qqnorm(df$jobAgeDays)
+qqline(df$jobAgeDays)
+```
+```{r}
+ll <- log(df$localClicks)
+ll[which(ll==Inf|ll==-Inf)] <- NA
+```
+```{r}
+qqnorm(ll)
+qqline(ll)
+```
+```{r}
+lll <- log(df$clicks)
+lll[which(lll==Inf|lll==-Inf)] <- NA
+```
+```{r}
+qqnorm(lll)
+qqline(lll)
+```
