@@ -1,0 +1,87 @@
+---
+title: "R Notebook"
+output: html_notebook
+---
+
+```{r}
+library(tidyverse)
+library(usedist)
+```
+
+
+```{r}
+colnames(subdata)
+```
+
+```{r}
+tmp <- subdata %>% 
+  filter(salaryCurrency == "USD") %>%
+  select(normTitle, normTitleCategory, 
+         educationRequirement, 
+         experienceRequired, 
+         supervisingJob, 
+         estimatedSalary, 
+         jobLanguage) %>%
+  na.omit
+
+# deal with education
+x <- c(0, 1, 2, 0, 1, 2)
+y <- c(0, 1, 2, "None", "High school", "Higher education")
+tmp$educationRequirement <- x[match(x, y)]
+
+# summarizing the job
+#tmp <- tmp %>% arrange(normTitleCategory)
+tmp <- tmp %>% 
+  group_by(normTitle, normTitleCategory) %>% 
+  summarise(
+         educationRequirement = mean(educationRequirement), 
+         experienceRequired = mean(experienceRequired), 
+         supervisingJob = mean(supervisingJob), 
+         estimatedSalary = mean(estimatedSalary))
+```
+
+```{r}
+head(tmp, 20)
+```
+
+```{r}
+custom_dist <- function(x, y) {
+    d <- (x$educationRequirement - y$educationRequirement)
+    #experienceRequired, 
+    #     supervisingJob, 
+    #     estimatedSalary, 
+    #     jobLanguage
+    #d <- 
+    return(d)
+} # end func custom_dist
+```
+
+
+```{r}
+x <- matrix(, nrow=5)
+rownames(x) <- LETTERS[1:5]
+manhattan_distance <- function (v1, v2) sum(abs(v1 - v2))
+dist_make(x, manhattan_distance, "Manhattan (custom)")
+```
+
+
+```{r}
+dat <- tmp %>% as.data.frame %>% select(-normTitle, -normTitleCategory) %>% head
+#dat
+dist_make(dat, custom_dist, "Dist (custom)")
+#pair <- t(combn(1:10, 2))
+#apply(pair, 1, function(idx){
+#  res <- custom_dist(dat[idx[1], ], dat[idx[2], ])
+#})
+```
+
+```{r}
+dat
+```
+
+```{r}
+pdf("plots.pdf")
+plot(rnorm(10), rnorm(10))
+dev.off()
+```
+

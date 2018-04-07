@@ -1,0 +1,38 @@
+---
+title: "R Notebook"
+output: html_notebook
+---
+
+```{r}
+library(zoo)
+library(dygraphs)
+```
+
+```{r}
+tmp <- subdata %>% select(date, normTitleCategory) %>% na.omit
+
+tmp <- tmp %>% 
+  mutate(month = format(date, "%m"), year = format(date, "%Y")) %>%
+  group_by(month, year, normTitleCategory) %>%
+  summarise(Count = n()) %>%
+  mutate(day = 01)
+
+tmp <- tmp %>% 
+  unite(date, year, month, sep = "-") %>% 
+  mutate(date = as.yearmon(date))
+```
+
+```{r}
+#tmp$date <- factor(tmp$date, levels = unique(tmp$date))
+ unique(tmp$date)
+```
+
+
+```{r}
+ggplot(tmp, aes(x = date, y = Count, 
+                group = normTitleCategory, color = normTitleCategory)) + 
+  geom_point() + 
+  geom_line() + 
+  theme(axis.text.x = element_text(angle = 90, hjust = 1))
+```
+
