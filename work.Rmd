@@ -1,0 +1,64 @@
+---
+title: "DatFest2018"
+author: "Benji"
+date: "4/6/2018"
+output: pdf_document
+---
+```{r}
+library(tidyverse)
+
+datadir <- "/data/DataFest2018/subset1.csv"
+
+my_data <- read_csv(file = datadir)
+
+my_data %>% group_by(stateProvince, normTitle) %>% summarize(count = n()) %>% na.omit %>% 
+  arrange(stateProvince, desc(count)) %>% top_n(n = 5) %>% filter(stateProvince == "AZ")
+
+my_data %>% group_by(stateProvince, normTitle, jobAgeDays) %>% na.omit %>% top_n(n = 5, wt = jobAgeDays) %>% summarize() %>% arrange(stateProvince, desc(jobAgeDays)) %>% 
+  ggplot(aes(normTitle, jobAgeDays)) + geom_bar(stat = "identity") + coord_flip() + theme(axis.text.y = element_text(size = 3))
+```
+
+
+```{r}
+my_data %>% na.omit %>% group_by(stateProvince, normTitle, jobAgeDays) %>% summarize() %>% arrange(stateProvince, desc(jobAgeDays)) %>%  filter(!duplicated(normTitle)) %>% 
+ggplot(aes(stateProvince, jobAgeDays)) + geom_bar(stat = "identity") + coord_flip()
+
+```
+
+
+```{r}
+my_data %>% mutate(education = replace(educationRequirement, educationRequirement == "None", 0)) %>%
+  head
+
+my_data %>% na.omit %>% filter(salaryCurrency == "USD") %>% group_by(stateProvince, educationRequirement) %>% summarize(medianSalary = median(estimatedSalary))
+```
+
+
+
+```{r}
+summary(aov(jobAgeDays ~ stateProvince, data = my_data))
+```
+
+Day 2:
+```{r}
+summary(lm(jobAgeDays ~ numReviews + descriptionCharacterLength + 
+             clicks, data = my_data))
+# Most significant predictors
+
+my_data %>% select(jobAgeDays, stateProvince, numReviews, descriptionCharacterLength, clicks) %>%
+  filter(stateProvince == "NC") %>% ggplot(aes(clicks, jobAgeDays, color = stateProvince)) + geom_point() + xlim(0, 1500)
+# Plot of clicks against jobAgeDays
+
+```
+
+
+```{r}
+
+a <- c("estimatedSalary", "jobAgeDays", "clicks", "localClicks")
+a[!a %in% "estimatedSalary"]
+
+```
+
+
+
+
