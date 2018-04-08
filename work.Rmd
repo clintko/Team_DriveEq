@@ -53,9 +53,7 @@ my_data %>% select(jobAgeDays, stateProvince, numReviews, descriptionCharacterLe
 
 
 ```{r}
-
-a <- c("estimatedSalary", "jobAgeDays", "clicks", "localClicks")
-a[!a %in% "estimatedSalary"]
+"No" %in% list("No" = 0, "Yes" = 1)
 
 ```
 
