@@ -1,0 +1,92 @@
+---
+title: "R Notebook"
+output: html_notebook
+---
+
+```{r}
+#### Load necessary packages and data ####
+library(tidyverse)
+library(shiny)
+library(networkD3)
+
+datadir <- "/data/DataFest2018"
+MAX <- 0.99
+CURRENCY_CAD2USD = 0.78
+CURRENCY_EUR2USD = 1.23
+##########################
+# READ In data
+
+## sub dataset
+data_input <- read_csv(file.path(datadir, "subset2.csv"))
+#data_input <- read_csv(file.path(datadir, "subset1.csv"))
+data_input <- data_input[,-1]
+
+
+## CAUTION: full dataset
+#data_input <- read_csv(file.path(datadir, "datafest2018.csv"))
+
+##########################
+subdata <- data_input %>% 
+    #filter(salaryCurrency == "USD") %>%
+    select(normTitle, #normTitleCategory, 
+         educationRequirement, 
+         experienceRequired, 
+         supervisingJob, 
+         estimatedSalary, 
+         licenseRequiredJob,
+         salaryCurrency) %>%
+    na.omit
+
+##########################
+tmp <- subdata
+
+# deal with Currency
+tmp <- tmp %>% 
+    mutate(
+        estimatedSalary = ifelse(
+            salaryCurrency == "EUR", 
+                estimatedSalary * CURRENCY_EUR2USD, estimatedSalary)) %>% 
+    mutate(
+        estimatedSalary = ifelse(
+            salaryCurrency == "CAD", 
+                estimatedSalary * CURRENCY_CAD2USD, estimatedSalary))
+
+# deal with education
+x <- c(0, 1, 2, 0, 1, 2)
+y <- c(0, 1, 2, "None", "High school", "Higher education")
+tmp$educationRequirement <- x[match(tmp$educationRequirement, y)]
+
+# summarizing the job
+tmp <- tmp %>% 
+    group_by(normTitle) %>% 
+    summarise(
+        educationRequirement = mean(educationRequirement), 
+        experienceRequired   = mean(experienceRequired), 
+        supervisingJob       = mean(supervisingJob), 
+        licenseRequiredJob   = mean(licenseRequiredJob),
+        estimatedSalary      = mean(estimatedSalary))
+dat_job <- tmp %>%  as.data.frame
+
+###############
+
+tmp <- dat_job
+rownames(tmp) <- tmp$normTitle
+
+tmp <- tmp %>%
+    select(-normTitle) %>% #, -normTitleCategory) %>% 
+    as.matrix
+
+dst <- as.matrix(dist(scale(tmp)))
+sim <- 1 / (1 + dst)
+adj <- sim - diag(1, dim(sim))
+```
+
+```{r}
+head(adj[1:5])
+```
+
+```{r}
+write_csv(dat_job, file.path(datadir, "data_job_subset2.csv"))
+write_csv(adj,     file.path(datadir, "adj_matrix_subset2.csv"))
+```
+

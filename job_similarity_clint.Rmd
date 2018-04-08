@@ -6,6 +6,8 @@ output: html_notebook
 ```{r}
 library(tidyverse)
 library(usedist)
+library(networkD3)
+library(reshape2)
 ```
 
 
@@ -21,67 +23,188 @@ tmp <- subdata %>%
          experienceRequired, 
          supervisingJob, 
          estimatedSalary, 
-         jobLanguage) %>%
+         licenseRequiredJob) %>%
   na.omit
 
 # deal with education
 x <- c(0, 1, 2, 0, 1, 2)
 y <- c(0, 1, 2, "None", "High school", "Higher education")
-tmp$educationRequirement <- x[match(x, y)]
+tmp$educationRequirement <- x[match(tmp$educationRequirement, y)]
 
 # summarizing the job
-#tmp <- tmp %>% arrange(normTitleCategory)
 tmp <- tmp %>% 
   group_by(normTitle, normTitleCategory) %>% 
   summarise(
          educationRequirement = mean(educationRequirement), 
-         experienceRequired = mean(experienceRequired), 
-         supervisingJob = mean(supervisingJob), 
-         estimatedSalary = mean(estimatedSalary))
+         experienceRequired   = mean(experienceRequired), 
+         supervisingJob       = mean(supervisingJob), 
+         licenseRequiredJob   = mean(licenseRequiredJob),
+         estimatedSalary      = mean(estimatedSalary))
+dat_job <- tmp %>%  as.data.frame
 ```
 
 ```{r}
-head(tmp, 20)
+dat_job %>% sample_n(10)
 ```
 
+define a custom distance function
 ```{r}
-custom_dist <- function(x, y) {
-    d <- (x$educationRequirement - y$educationRequirement)
-    #experienceRequired, 
-    #     supervisingJob, 
-    #     estimatedSalary, 
-    #     jobLanguage
-    #d <- 
+custom_dist_pair <- function(x, y) {
+    # educationRequirement
+    # experienceRequired, 
+    # supervisingJob, 
+    # licenseRequiredJob
+    # estimatedSalary, 
+    d1 <- x[1] - y[1] #x$educationRequirement - y$educationRequirement
+    d2 <- x[2] - y[2] #x$experienceRequired   - y$experienceRequired
+    d3 <- x[3] - y[3] #x$supervisingJob       - y$supervisingJob
+    d4 <- x[4] - y[4] #x$licenseRequiredJob   - y$licenseRequiredJob
+    d5 <- x[5] - y[5] #x$estimatedSalary      - y$estimatedSalary
+    
+    d <- sqrt(d1^2 + d2^2 + d3^2 + d4^2 + d5^2)
     return(d)
 } # end func custom_dist
+
+custom_dist <- function(x){
+    res <- dist_make(x, custom_dist_pair, "Dist (custom)")
+    res <- as.dist(res)
+    return(res)
+}
+
+custom_scale <- function(x){
+  res <- (x - min(x)) / (max(x) - min(x))
+  return(res)
+}
 ```
 
 
 ```{r}
-x <- matrix(, nrow=5)
-rownames(x) <- LETTERS[1:5]
-manhattan_distance <- function (v1, v2) sum(abs(v1 - v2))
-dist_make(x, manhattan_distance, "Manhattan (custom)")
+job <- c("interior designer", "artist", "cad drafter", "payroll coordinator", 
+         "natural resource technician", "video engineer", "accounting assistant", "clerk", 
+         "phone operator", "farm hand")
+
+tmp <- dat_job %>% filter(normTitle %in% job)
+rownames(tmp) <- tmp$normTitle
+
+tmp <- tmp %>%
+    select(-normTitle, -normTitleCategory) %>% 
+    as.matrix
+
+heatmap(tmp, 
+        distfun = custom_dist, 
+        scale = "column", 
+        #Colv = NULL, 
+        #Rowv = NULL, 
+        cexCol = 0.7)
+```
+
+```{r}
+job <- c("interior designer", "artist", "cad drafter", "payroll coordinator", 
+         "natural resource technician", "video engineer", "accounting assistant", "clerk", 
+         "phone operator", "farm hand")
+
+tmp <- dat_job %>% filter(normTitle %in% job)
+rownames(tmp) <- tmp$normTitle
+
+tmp <- tmp %>%
+    select(-normTitle, -normTitleCategory) %>% 
+    as.matrix
+
+dst <- as.matrix(dist(scale(tmp)))
+```
+
+```{r}
+dst
+```
+
+```{r}
+tmp <- dst
+tmp <- 1 / (1 + tmp)
+sim <- tmp
+```
+
+```{r}
+tmp <- sim
+tmp <- ifelse(tmp > 0.4, 1, 0)
+adj <- tmp
+adj
+```
+
+```{r}
+adj2 <- adj - diag(1, dim(adj))
+print(adj2)
+```
+
+```{r}
+all(rownames(adj2) == colnames(adj2))
+```
+
+```{r}
+tmp <- melt(adj2) %>% filter(value == 1) %>% select(-value)
+simpleNetwork(tmp, fontSize = 20)
+```
+
+```{r}
+nodes <- data.frame(
+  name = rownames(adj2),
+  group = 1,
+  size  = 5)
 ```
 
 
 ```{r}
-dat <- tmp %>% as.data.frame %>% select(-normTitle, -normTitleCategory) %>% head
-#dat
-dist_make(dat, custom_dist, "Dist (custom)")
-#pair <- t(combn(1:10, 2))
-#apply(pair, 1, function(idx){
-#  res <- custom_dist(dat[idx[1], ], dat[idx[2], ])
-#})
+links <- data.frame(
+  source = match(tmp$Var1, rownames(adj2)) - 1,
+  target = match(tmp$Var2, rownames(adj2)) - 1,
+  value = 1)
+```
+
+
+```{r}
+forceNetwork(Links = links, Nodes = nodes, Source = "source",
+             Target = "target", Value = "value", NodeID = "name",
+             Group = "group", opacity = 0.4)
 ```
 
 ```{r}
-dat
+#job <- c("interior designer", "artist", "cad drafter", "payroll coordinator", 
+#         "natural resource technician", "video engineer", "accounting assistant", "clerk", 
+#         "phone operator", "farm hand")
+
+tmp <- dat_job #%>% filter(normTitle %in% job)
+rownames(tmp) <- tmp$normTitle
+
+tmp <- tmp %>%
+    select(-normTitle, -normTitleCategory) %>% 
+    as.matrix
+
+dst <- as.matrix(dist(scale(tmp)))
+
+sim <- 1 / (1 + dst)
+adj <- ifelse(sim > 0.9, 1, 0)
+adj2 <- adj - diag(1, dim(adj))
 ```
 
 ```{r}
-pdf("plots.pdf")
-plot(rnorm(10), rnorm(10))
-dev.off()
+tmp <- melt(adj2) %>% filter(value == 1) %>% select(-value)
+nrow(tmp)
+```
+
+```{r}
+tmp <- melt(adj2) %>% filter(value == 1) %>% select(-value)
+jobs <- "interior designer"
+tmp <- tmp %>% filter(Var1 %in% jobs)
+```
+
+
+```{r}
+simpleNetwork(tmp, fontSize = 20, opacity = 0.5)
+```
+
+1 CA -> 0.78 US
+1 Euro -> 1.23 US
+
+```{r}
+rownames(dst)
 ```
 

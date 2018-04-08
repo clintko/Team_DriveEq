@@ -1,0 +1,12 @@
+name: job_similarity
+title: job_similarity
+username:
+account: clintko
+server: shinyapps.io
+hostUrl: https://api.shinyapps.io/v1
+appId: 317564
+bundleId: 1308064
+url: https://clintko.shinyapps.io/job_similarity/
+when: 1523162057.69645
+asMultiple: FALSE
+asStatic: FALSE
