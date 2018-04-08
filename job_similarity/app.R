@@ -19,8 +19,8 @@ CURRENCY_CAD2USD = 0.78
 CURRENCY_EUR2USD = 1.23
 
 ##########################
-#load(file.path(datadir, "dat_job_adjMatrix_subset2.RData"))
-load(file.path(datadir, "dat_job_adjMatrix_fulldata.RData"))
+load(file.path(datadir, "dat_job_adjMatrix_subset2.RData"))
+#load(file.path(datadir, "dat_job_adjMatrix_fulldata.RData"))
 
 # ##########################
 # # READ In data
@@ -98,14 +98,13 @@ server <- function(input, output) {
     
     output$simple <- renderSimpleNetwork({
         
-        
         adj2  <- ifelse(adj > input$cutoff, 1, 0)
         links <- melt(adj2) %>% filter(value == 1) %>% select(-value)
     
-        jobs1 <- input$job
-        tmp   <- links %>% filter(Var1 %in% jobs1)
-        jobs2 <- c(jobs1, tmp$Var2)
-        net   <- links %>% filter(Var1 %in% jobs2)
+        job   <- input$job
+        net   <- links %>% filter(Var1 %in% job)
+        #jobs2 <- c(jobs1, as.character(tmp$Var2))
+        #net   <- links %>% filter(Var1 %in% jobs2)
     
         simpleNetwork(
             net, 
@@ -116,31 +115,47 @@ server <- function(input, output) {
     })
     
     output$force <- renderForceNetwork({
-        forceNetwork(Links = MisLinks, Nodes = MisNodes, Source = "source",
-                     Target = "target", Value = "value", NodeID = "name",
-                     Group = "group", opacity = input$opacity)
         
-        dat_col <- dat_features
-        pal = brewer.pal(9, "Reds")
-        col = colorRampPalette(c(pal[4], color2))
+        adj2  <- ifelse(adj > input$cutoff, 1, 0)
+        links <- melt(adj2) %>% filter(value == 1) %>% select(-value)
+        
+        # First neighbors
+        job <- input$job
+        net   <- links %>% filter(Var1 %in% job)
+        
+        # Second neighbors
+        #jobs2 <- c(jobs1, as.character(tmp$Var2))
+        #net   <- links %>% filter(Var1 %in% jobs2)
+        jobs  <- unique(c(as.character(net$Var1), as.character(net$Var2)))
         
         
-        #This adds a column of color values
-        # based on the salary values
-        dat_col$col_salary <- col(100)[as.numeric(cut(tmp$mean_salary, breaks = 10))]
+        tmp   <- dat_features
+        tmp   <- tmp %>% filter(normTitle %in% jobs)
+        tmp$NodeSize <- tmp$mean_click * input$NodeSizeFactor
+        nodes_force <- tmp
         
+        tmp   <- net
+        links_force <- data.frame(
+            source = match(tmp$Var1, nodes_force$normTitle) - 1,
+            target = match(tmp$Var2, nodes_force$normTitle) - 1,
+            value  = 1) %>% na.omit
         
-        nodes_force <- data.frame(
-            name  = colnames(adj),
-            group = 1)
-        nodes <- left_join()
+        forceNetwork(
+            #Links = MisLinks, Nodes = MisNodes, 
+            #NodeID = "name",Group = "group", 
+            #opacity = input$opacity)
+            
+            Links  = links_force, Nodes  = nodes_force, 
+            Source = "source",    Target = "target", Value = "value", 
+            NodeID       = "normTitle", Group = "group",
+            Nodesize     = "NodeSize",
+            radiusCalculation = JS("d.nodesize + 1"),
+            opacity      = input$opacity, opacityNoHover = 1,
+            fontSize     = input$fontSize,
+            charge       = input$charge,
+            linkDistance = input$linkDistance)  
         
-        #links_force <- data.frame(
-        #    source = match(tmp$Var1, rownames(adj2)) - 1,
-        #    target = match(tmp$Var2, rownames(adj2)) - 1,
-        #    value  = 1)
-        
-        #forceNetwork()
+       
     })
     
     
@@ -151,7 +166,7 @@ server <- function(input, output) {
 
 ui <- shinyUI(fluidPage(
   
-  titlePanel("Shiny networkD3 "),
+  titlePanel("Indeed Job Similarity"),
   
   sidebarLayout(
     sidebarPanel(
@@ -159,20 +174,22 @@ ui <- shinyUI(fluidPage(
                   selected = "data scientist", multiple = TRUE,
                   selectize = TRUE, width = NULL, size = NULL),
       
-      sliderInput("cutoff", "Cut Off Value", 0.6, 
+      sliderInput("cutoff", "Cut Off Value", 0.7, 
                   min = 0.5, max = MAX, step = 0.01),
       
       sliderInput("fontSize", "Font Size", 15, 
-                  min = 5, max = 20, step = 1),
+                  min = 5, max = 50, step = 5),
       
       sliderInput("linkDistance", "Scale", 50, 
-                  min = 50, max = 1000, step = 50),
+                  min = 50, max = 500, step = 10),
       
       sliderInput("charge", "Force", -500, 
-                  min = -1000, max = 0, step = 100),
+                  min = -500, max = 0, step = 10),
       
       sliderInput("opacity", "Opacity", 0.7, 
-                  min = 0.1, max = 1, step = .1)
+                  min = 0.1, max = 1, step = .1),
+      
+      numericInput("NodeSizeFactor", "Node Size Factor (ForceNetwork)", 1)
       
     ), # end siderbarPanel
     
@@ -181,7 +198,7 @@ ui <- shinyUI(fluidPage(
     mainPanel(
       tabsetPanel(
         tabPanel("Simple Network", simpleNetworkOutput("simple")),
-        tabPanel("Force Network", forceNetworkOutput("force"))
+        tabPanel("More Information", forceNetworkOutput("force"))
       ) # end tabsetPanel
     ) # end MainPanel
   ) # end sidebarLayout
