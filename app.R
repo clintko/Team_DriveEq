@@ -9,7 +9,7 @@
 
 library(tidyverse)
 
-datadir <- "/data/DataFest2018/subset1.csv"
+datadir <- "/data/DataFest2018/subset2.csv"
 my_data <- read_csv(file = datadir)
 my_data %>% group_by(stateProvince) %>% summarize(count = n()) -> stateList # For list of unique states
 
