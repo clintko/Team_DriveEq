@@ -10,6 +10,8 @@
 library(tidyverse)
 library(shiny)
 library(networkD3)
+library(reshape2)
+library(RColorBrewer)
 
 datadir <- "/data/DataFest2018"
 MAX <- 0.99
@@ -17,8 +19,8 @@ CURRENCY_CAD2USD = 0.78
 CURRENCY_EUR2USD = 1.23
 
 ##########################
-dat_job <- read_csv(file.path(datadir, "data_job_subset2.csv"))
-adj     <- read_csv(file.path(datadir, "adj_matrix_subset2.csv"))
+#load(file.path(datadir, "dat_job_adjMatrix_subset2.RData"))
+load(file.path(datadir, "dat_job_adjMatrix_fulldata.RData"))
 
 # ##########################
 # # READ In data
@@ -90,8 +92,13 @@ adj     <- read_csv(file.path(datadir, "adj_matrix_subset2.csv"))
 
 #### Server ####
 server <- function(input, output) {
+    # make sure the job input 
+    #req(input$job, cancelOutput = TRUE)
+    
+    
     output$simple <- renderSimpleNetwork({
-      
+        
+        
         adj2  <- ifelse(adj > input$cutoff, 1, 0)
         links <- melt(adj2) %>% filter(value == 1) %>% select(-value)
     
@@ -107,6 +114,37 @@ server <- function(input, output) {
             linkDistance = input$linkDistance,
             opacity      = input$opacity)
     })
+    
+    output$force <- renderForceNetwork({
+        forceNetwork(Links = MisLinks, Nodes = MisNodes, Source = "source",
+                     Target = "target", Value = "value", NodeID = "name",
+                     Group = "group", opacity = input$opacity)
+        
+        dat_col <- dat_features
+        pal = brewer.pal(9, "Reds")
+        col = colorRampPalette(c(pal[4], color2))
+        
+        
+        #This adds a column of color values
+        # based on the salary values
+        dat_col$col_salary <- col(100)[as.numeric(cut(tmp$mean_salary, breaks = 10))]
+        
+        
+        nodes_force <- data.frame(
+            name  = colnames(adj),
+            group = 1)
+        nodes <- left_join()
+        
+        #links_force <- data.frame(
+        #    source = match(tmp$Var1, rownames(adj2)) - 1,
+        #    target = match(tmp$Var2, rownames(adj2)) - 1,
+        #    value  = 1)
+        
+        #forceNetwork()
+    })
+    
+    
+    
 } # end server
 
 #### UI ####
@@ -117,7 +155,7 @@ ui <- shinyUI(fluidPage(
   
   sidebarLayout(
     sidebarPanel(
-      selectInput("job", "Select Your Job", rownames(dst), 
+      selectInput("job", "Select Your Job", colnames(adj), 
                   selected = "data scientist", multiple = TRUE,
                   selectize = TRUE, width = NULL, size = NULL),
       
@@ -142,7 +180,8 @@ ui <- shinyUI(fluidPage(
       
     mainPanel(
       tabsetPanel(
-        tabPanel("Simple Network", simpleNetworkOutput("simple"))
+        tabPanel("Simple Network", simpleNetworkOutput("simple")),
+        tabPanel("Force Network", forceNetworkOutput("force"))
       ) # end tabsetPanel
     ) # end MainPanel
   ) # end sidebarLayout

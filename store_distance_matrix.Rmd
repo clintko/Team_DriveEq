@@ -17,39 +17,49 @@ CURRENCY_EUR2USD = 1.23
 # READ In data
 
 ## sub dataset
-data_input <- read_csv(file.path(datadir, "subset2.csv"))
+#data_input <- read_csv(file.path(datadir, "subset2.csv"))
 #data_input <- read_csv(file.path(datadir, "subset1.csv"))
-data_input <- data_input[,-1]
+#data_input <- data_input[,-1]
 
 
 ## CAUTION: full dataset
-#data_input <- read_csv(file.path(datadir, "datafest2018.csv"))
+data_input <- read_csv(file.path(datadir, "datafest2018.csv"))
 
 ##########################
-subdata <- data_input %>% 
+tmp <- data_input
+
+# deal with Currency
+tmp <- tmp %>% 
+    mutate(
+        estimatedSalary = 
+            ifelse(is.na(salaryCurrency), estimatedSalary,
+                ifelse(
+                    salaryCurrency == "EUR", 
+                    estimatedSalary * CURRENCY_EUR2USD, 
+                    estimatedSalary))) %>% 
+    mutate(
+        estimatedSalary = 
+            ifelse(is.na(salaryCurrency), estimatedSalary,
+                ifelse(
+                    salaryCurrency == "CAD", 
+                    estimatedSalary * CURRENCY_CAD2USD, 
+                    estimatedSalary)))
+    
+data_salary2US <- tmp
+
+##########################
+subdata <- data_salary2US  %>% 
     #filter(salaryCurrency == "USD") %>%
     select(normTitle, #normTitleCategory, 
          educationRequirement, 
          experienceRequired, 
          supervisingJob, 
          estimatedSalary, 
-         licenseRequiredJob,
-         salaryCurrency) %>%
+         licenseRequiredJob) %>%
     na.omit
 
 ##########################
 tmp <- subdata
-
-# deal with Currency
-tmp <- tmp %>% 
-    mutate(
-        estimatedSalary = ifelse(
-            salaryCurrency == "EUR", 
-                estimatedSalary * CURRENCY_EUR2USD, estimatedSalary)) %>% 
-    mutate(
-        estimatedSalary = ifelse(
-            salaryCurrency == "CAD", 
-                estimatedSalary * CURRENCY_CAD2USD, estimatedSalary))
 
 # deal with education
 x <- c(0, 1, 2, 0, 1, 2)
@@ -58,6 +68,7 @@ tmp$educationRequirement <- x[match(tmp$educationRequirement, y)]
 
 # summarizing the job
 tmp <- tmp %>% 
+    filter(normTitle != "") %>%
     group_by(normTitle) %>% 
     summarise(
         educationRequirement = mean(educationRequirement), 
@@ -82,11 +93,45 @@ adj <- sim - diag(1, dim(sim))
 ```
 
 ```{r}
-head(adj[1:5])
+dat_features <- data_input %>% 
+    group_by(normTitle) %>% 
+    summarise(
+        mean_click  = median(clicks, na.rm = TRUE),
+        mean_salary = median(estimatedSalary, na.rm = TRUE))
 ```
 
 ```{r}
-write_csv(dat_job, file.path(datadir, "data_job_subset2.csv"))
-write_csv(adj,     file.path(datadir, "adj_matrix_subset2.csv"))
+library(RColorBrewer)
+dat_col <- dat_features
+pal = brewer.pal(9, "Reds")
+col = colorRampPalette(pal)
+        
+        #This adds a column of color values
+        # based on the salary values
+dat_col$col_salary <- col(100)[as.numeric(cut(tmp$mean_salary, breaks = 10))]
+        
+
 ```
 
+
+```{r}
+save(dat_features, dat_job, adj, file=file.path(datadir, "dat_job_adjMatrix_fulldata.RData"))
+```
+
+
+```{r}
+save(dat_job, adj, file=file.path(datadir, "dat_job_adjMatrix_subset2.RData"))
+
+#write_csv(dat_job, file.path(datadir, "data_job_subset2.csv"))
+#write_csv(adj,     file.path(datadir, "adj_matrix_subset2.csv"))
+```
+
+```{r}
+datadir <- "/data/DataFest2018"
+load(file.path(datadir, "dat_job_adjMatrix_subset2.RData"))
+```
+
+```{r}
+datadir <- "/data/DataFest2018"
+load(file.path(datadir, "dat_job_adjMatrix_fulldata.RData"))
+```
